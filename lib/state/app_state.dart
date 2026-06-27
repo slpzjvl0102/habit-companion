@@ -99,8 +99,8 @@ class AppState extends ChangeNotifier {
 
   void addNextHabit(String name) {
     final trimmed = name.trim();
-    // Re-assert the 5/7 gate in the model (was UI-only before).
-    if (trimmed.isEmpty || data.habits.length >= 3 || !canAddNextHabit) return;
+    // Re-assert the 5/7 gate in the model (was UI-only before). Chain of 4.
+    if (trimmed.isEmpty || data.habits.length >= 4 || !canAddNextHabit) return;
     final nextOrder =
         data.habits.map((h) => h.order).fold<int>(-1, (m, o) => o > m ? o : m) +
             1;

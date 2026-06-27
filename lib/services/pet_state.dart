@@ -54,7 +54,7 @@ PetView computePetView(AppData d, String today) {
 /// approves adding the next link (progression trigger).
 bool progressionReady(AppData d, String today, DayClock clock) {
   final actives = d.activeHabits;
-  if (actives.isEmpty || d.habits.length >= 3) return false;
+  if (actives.isEmpty || d.habits.length >= 4) return false; // 4-routine chain
   final latest = actives.last;
   final hits = clock
       .lastNDays(today, 7)

@@ -1,4 +1,11 @@
-# /autoplan Review — habit_companion v1 (experiment)
+# /autoplan Review — habit_companion v1
+
+> NOTE: framing changed after this review. The product is a **personal 8-week
+> 4-routine habit-building tool** (아주 작은 습관의 힘), NOT a falsifiable
+> experiment. The CEO "User Challenge" (ABA / demand / falsifiability) is
+> SUPERSEDED — those critiques applied to a startup/proof goal, not a personal
+> tool. **All the Eng + Design bug fixes below were applied and remain valid**
+> (they improve the app regardless of framing). See `spec.md` / `roadmap.md`.
 
 Post-implementation review of `docs/spec.md` + `lib/` @ commit `6cc5cb1`.
 Voices: **codex unavailable** → 1 independent Claude subagent per phase (CEO / Design / Eng) + primary review. UI scope = yes (Design ran); DX scope = no (consumer app, DX skipped).
