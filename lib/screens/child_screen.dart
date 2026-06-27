@@ -17,7 +17,11 @@ class ChildScreen extends StatelessWidget {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            CompanionView(pet: state.pet),
+            CompanionView(
+              pet: state.pet,
+              xp: state.petXp,
+              xpForNext: state.xpForNext,
+            ),
             const SizedBox(height: 28),
             if (state.restDay)
               Card(
@@ -31,7 +35,15 @@ class ChildScreen extends StatelessWidget {
               ...state.activeHabits.map((h) => _HabitCard(
                     name: h.name,
                     done: state.isChecked(h.id),
-                    onTap: () => state.checkHabit(h.id),
+                    onTap: () {
+                      state.checkHabit(h.id);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('멋져! 컴패니언이 신났어 ⚡'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
                   )),
           ],
         ),

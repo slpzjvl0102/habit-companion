@@ -17,10 +17,12 @@ class Habit {
   Map<String, dynamic> toJson() =>
       {'id': id, 'name': name, 'order': order, 'active': active};
 
+  // Tolerant: missing/renamed fields default instead of throwing, so a schema
+  // change mid-experiment degrades gracefully rather than wiping history.
   factory Habit.fromJson(Map<String, dynamic> j) => Habit(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        order: j['order'] as int,
+        id: (j['id'] as String?) ?? 'h?',
+        name: (j['name'] as String?) ?? '습관',
+        order: (j['order'] as int?) ?? 0,
         active: (j['active'] as bool?) ?? true,
       );
 }
@@ -119,7 +121,10 @@ class AppData {
         points: (j['points'] as int?) ?? 0,
         rewardPromise: (j['rewardPromise'] as String?) ?? '',
         firstDay: j['firstDay'] as String?,
-        lastSeenDay: j['lastSeenDay'] as String,
+        // Tolerant: never throw on a missing day key (would wipe the run).
+        lastSeenDay: (j['lastSeenDay'] as String?) ??
+            (j['firstDay'] as String?) ??
+            '2020-01-01',
         resetHour: (j['resetHour'] as int?) ?? 4,
         parentPin: j['parentPin'] as String?,
       );

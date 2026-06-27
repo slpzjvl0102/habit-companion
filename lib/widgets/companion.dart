@@ -2,35 +2,72 @@ import 'package:flutter/material.dart';
 
 import '../services/pet_state.dart';
 
-/// The growth companion. Re-skinned for a 10yo: a creature you raise/charge —
-/// mood is shown via aura color + label, never a babyish sad face. lowEnergy
-/// just dims the creature.
+/// The growth companion. FIX (design CRIT-1): the creature now visibly EVOLVES
+/// with level (🥚→🐣→🦎→🐲→🐉) and shows an XP-to-next-evolution ring — the core
+/// 10yo motivator the spec promised. lowEnergy is a "needs a charge" (battery)
+/// state, kept bright, not a guilt-tripping faded sad pet.
 class CompanionView extends StatelessWidget {
   final PetView pet;
-  const CompanionView({super.key, required this.pet});
+  final int xp;
+  final int xpForNext;
+  const CompanionView({
+    super.key,
+    required this.pet,
+    required this.xp,
+    required this.xpForNext,
+  });
+
+  String _glyph(int level) {
+    if (level <= 1) return '🥚';
+    if (level == 2) return '🐣';
+    if (level <= 4) return '🦎';
+    if (level <= 6) return '🐲';
+    return '🐉';
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = _spec(pet.mood);
+    final progress = xpForNext > 0 ? (xp / xpForNext).clamp(0.0, 1.0) : 0.0;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: 168,
-          height: 168,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: s.bg,
-            border: Border.all(color: s.ring, width: 5),
-          ),
-          alignment: Alignment.center,
-          child: Opacity(
-            opacity: s.dim ? 0.45 : 1.0,
-            child: const Text('🐲', style: TextStyle(fontSize: 84)),
+        SizedBox(
+          width: 184,
+          height: 184,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 184,
+                height: 184,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 8,
+                  backgroundColor: Colors.black.withValues(alpha: 0.06),
+                  valueColor: AlwaysStoppedAnimation<Color>(s.ring),
+                ),
+              ),
+              AnimatedScale(
+                scale: pet.mood == PetMood.energized ? 1.06 : 1.0,
+                duration: const Duration(milliseconds: 250),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: s.bg),
+                  alignment: Alignment.center,
+                  child: Opacity(
+                    opacity: s.dim ? 0.8 : 1.0,
+                    child: Text(_glyph(pet.level),
+                        style: const TextStyle(fontSize: 78)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -47,6 +84,11 @@ class CompanionView extends StatelessWidget {
             const SizedBox(width: 10),
             Text(s.label, style: Theme.of(context).textTheme.titleMedium),
           ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text('다음 진화까지 $xp / $xpForNext',
+              style: Theme.of(context).textTheme.bodySmall),
         ),
         if (pet.awaitingApproval)
           const Padding(
@@ -65,9 +107,10 @@ class CompanionView extends StatelessWidget {
       case PetMood.energized:
         return const _Spec('활기 넘침', Color(0xFFDDF4E7), Color(0xFF22C55E), false);
       case PetMood.idle:
-        return const _Spec('대기 중', Color(0xFFEFF1F5), Color(0xFFAAB2C0), false);
+        return const _Spec('대기 중', Color(0xFFEFF1F5), Color(0xFF8FA0B6), false);
       case PetMood.lowEnergy:
-        return const _Spec('에너지 낮음', Color(0xFFF2F2F4), Color(0xFFCBD0D8), true);
+        return const _Spec(
+            '에너지 낮음 🔋', Color(0xFFFFF4E0), Color(0xFFF59E0B), true);
       case PetMood.resting:
         return const _Spec('쉬는 중 💤', Color(0xFFE9E8F5), Color(0xFF8B86D6), false);
     }

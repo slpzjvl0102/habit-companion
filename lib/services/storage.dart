@@ -8,6 +8,7 @@ import '../models/app_data.dart';
 /// shared_preferences. Works on web (localStorage) and Android.
 class Storage {
   static const _key = 'habit_companion_state_v1';
+  static const _backupKey = 'habit_companion_state_v1_corrupt_backup';
 
   Future<AppData?> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -16,7 +17,12 @@ class Storage {
     try {
       return AppData.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } catch (_) {
-      return null; // corrupt -> caller reseeds
+      // Do NOT silently discard a 3-week experiment's data. Preserve the
+      // unreadable blob under a backup key so it can be recovered, then let
+      // the caller decide. (fromJson is also tolerant of missing fields, so
+      // we only land here on truly malformed JSON.)
+      await prefs.setString(_backupKey, raw);
+      return null;
     }
   }
 

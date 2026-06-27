@@ -38,19 +38,54 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
+  bool _parentUnlocked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    // FIX (eng HIGH-2): re-run day rollover on resume; Flutter does not
+    // re-run main()/boot() when the app returns from background.
+    if (lifecycle == AppLifecycleState.resumed) {
+      context.read<AppState>().refresh();
+    }
+  }
+
+  void _select(int i) {
+    setState(() {
+      _index = i;
+      if (i != 1) _parentUnlocked = false; // re-lock parent tab on leave
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [ChildScreen(), ParentScreen()],
+        children: [
+          const ChildScreen(),
+          ParentScreen(
+            unlocked: _parentUnlocked,
+            onUnlocked: () => setState(() => _parentUnlocked = true),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _select,
         destinations: const [
           NavigationDestination(icon: Icon(Icons.pets), label: '아이'),
           NavigationDestination(

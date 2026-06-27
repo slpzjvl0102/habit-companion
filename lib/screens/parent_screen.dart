@@ -4,16 +4,23 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import 'weekly_card.dart';
 
-/// 관리자(부모) 뷰: 승인(정산) · 휴식일 · 다음 고리 · 보상 메모 · 주간 카드.
-/// 소프트 PIN 게이트로 아이의 자기승인을 막는다.
+/// 관리자(부모) 뷰. unlocked/onUnlocked are owned by HomeShell so the soft PIN
+/// gate RE-LOCKS whenever the parent leaves the tab (fix: previously checked
+/// once per launch, letting the kid self-approve).
 class ParentScreen extends StatefulWidget {
-  const ParentScreen({super.key});
+  final bool unlocked;
+  final VoidCallback onUnlocked;
+  const ParentScreen({
+    super.key,
+    required this.unlocked,
+    required this.onUnlocked,
+  });
+
   @override
   State<ParentScreen> createState() => _ParentScreenState();
 }
 
 class _ParentScreenState extends State<ParentScreen> {
-  bool _unlocked = false;
   final _pin = TextEditingController();
 
   @override
@@ -26,7 +33,7 @@ class _ParentScreenState extends State<ParentScreen> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final pin = state.data.parentPin;
-    if (pin != null && !_unlocked) {
+    if (pin != null && !widget.unlocked) {
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -49,7 +56,7 @@ class _ParentScreenState extends State<ParentScreen> {
               FilledButton(
                 onPressed: () {
                   if (_pin.text == pin) {
-                    setState(() => _unlocked = true);
+                    widget.onUnlocked();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('PIN이 틀렸어요')));
@@ -73,7 +80,6 @@ class _ParentBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = state.pendingApproval;
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(16),
@@ -82,34 +88,9 @@ class _ParentBody extends StatelessWidget {
           Text('포인트 ${state.data.points} · 컴패니언 Lv.${state.data.petLevel}',
               style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Text('오늘 승인',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  if (pending.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Text('승인할 항목이 없어요.'),
-                    )
-                  else
-                    ...pending.map((h) => ListTile(
-                          title: Text(h.name),
-                          trailing: FilledButton(
-                            onPressed: () => state.settleHabit(h.id),
-                            child: const Text('승인'),
-                          ),
-                        )),
-                ],
-              ),
-            ),
-          ),
+          _WeeklyPreview(state: state), // promoted to top (mission C1)
+          if (state.data.parentPin == null) _PinNudge(state: state),
+          _ApprovalCard(state: state),
           Card(
             child: SwitchListTile(
               title: const Text('오늘은 쉬는 날'),
@@ -120,18 +101,120 @@ class _ParentBody extends StatelessWidget {
           ),
           if (state.canAddNextHabit) _AddNextCard(state: state),
           _RewardCard(state: state),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.insights),
-              title: const Text('주간 성장 스토리'),
-              subtitle: const Text('환경이 한 일을 보여줘요'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const WeeklyCard())),
-            ),
-          ),
           _PinCard(state: state),
         ],
+      ),
+    );
+  }
+}
+
+class _WeeklyPreview extends StatelessWidget {
+  final AppState state;
+  const _WeeklyPreview({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = state.data;
+    final activeIds = d.activeHabits.map((h) => h.id).toSet();
+    final completed = state.clock
+        .lastNDays(state.today, 7)
+        .where((day) =>
+            (d.log[day]?.checked ?? const <String>{}).any(activeIds.contains))
+        .length;
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: ListTile(
+        leading: const Icon(Icons.insights),
+        title: const Text('주간 성장 스토리'),
+        subtitle: Text('최근 7일 중 $completed일 스스로 · 환경이 한 일을 보세요'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const WeeklyCard())),
+      ),
+    );
+  }
+}
+
+class _PinNudge extends StatelessWidget {
+  final AppState state;
+  const _PinNudge({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: ListTile(
+        leading: const Icon(Icons.warning_amber),
+        title: const Text('부모 PIN을 설정하세요'),
+        subtitle: const Text('지금은 아이가 스스로 승인할 수 있어요'),
+        trailing: FilledButton(
+          onPressed: () => editPin(context, state),
+          child: const Text('설정'),
+        ),
+      ),
+    );
+  }
+}
+
+class _ApprovalCard extends StatelessWidget {
+  final AppState state;
+  const _ApprovalCard({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = state.pendingApprovals;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: Text('오늘 현황 · 승인',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            // FIX (design #5): show today's per-habit status, not just pending.
+            ...state.activeHabits.map((h) {
+              final st = state.todayStatus(h.id);
+              final label = st == 2
+                  ? '완료'
+                  : st == 1
+                      ? '했음 · 승인 대기'
+                      : '아직 안 함';
+              return ListTile(
+                dense: true,
+                title: Text(h.name),
+                trailing: Text(label),
+              );
+            }),
+            const Divider(),
+            // FIX (eng CRIT-1): pending spans yesterday too, so a next-morning
+            // approval still lands.
+            if (pending.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(8),
+                child: Text('승인할 항목이 없어요.'),
+              )
+            else
+              ...pending.map((p) => ListTile(
+                    title: Text(p.habit.name),
+                    subtitle: p.isToday ? null : const Text('어제 한 것'),
+                    trailing: FilledButton(
+                      onPressed: () {
+                        state.settleHabit(p.day, p.habit.id);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(state.lastGrowLeveled
+                              ? '+1 · 컴패니언이 진화했어요! Lv.${state.data.petLevel}'
+                              : '+1 · 컴패니언이 자랐어요'),
+                          duration: const Duration(seconds: 1),
+                        ));
+                      },
+                      child: const Text('승인'),
+                    ),
+                  )),
+          ],
+        ),
       ),
     );
   }
@@ -255,35 +338,35 @@ class _PinCard extends StatelessWidget {
         leading: const Icon(Icons.pin_outlined),
         title: Text(hasPin ? '부모 PIN 변경 / 해제' : '부모 PIN 설정'),
         subtitle: const Text('아이가 스스로 승인하지 못하게'),
-        onTap: () => _editPin(context),
+        onTap: () => editPin(context, state),
       ),
     );
   }
+}
 
-  void _editPin(BuildContext context) {
-    final c = TextEditingController();
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('부모 PIN'),
-        content: TextField(
-          controller: c,
-          keyboardType: TextInputType.number,
-          obscureText: true,
-          decoration: const InputDecoration(hintText: '4자리 (비우면 해제)'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-          FilledButton(
-            onPressed: () {
-              state.setParentPin(c.text.isEmpty ? null : c.text);
-              Navigator.pop(ctx);
-            },
-            child: const Text('저장'),
-          ),
-        ],
+void editPin(BuildContext context, AppState state) {
+  final c = TextEditingController();
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('부모 PIN'),
+      content: TextField(
+        controller: c,
+        keyboardType: TextInputType.number,
+        obscureText: true,
+        decoration: const InputDecoration(hintText: '4자리 (비우면 해제)'),
       ),
-    );
-  }
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+        FilledButton(
+          onPressed: () {
+            state.setParentPin(c.text.isEmpty ? null : c.text);
+            Navigator.pop(ctx);
+          },
+          child: const Text('저장'),
+        ),
+      ],
+    ),
+  );
 }
