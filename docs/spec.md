@@ -26,14 +26,14 @@
 ## Implementation Details
 - **스택:** Flutter. 상태관리 `provider`(단일 `ChangeNotifier` AppState). 영속화 `shared_preferences`(상태 전체를 JSON 1키 직렬화). 백엔드·계정 0.
 - **하루 경계:** `day_clock` — 리셋 시각 기본 새벽 4시(늦은 저녁 부모 승인도 그날로 집계). 현재 '습관일' = `now - resetOffset`.
-- **진행 트리거:** 활성 고리가 최근 7일 중 5일 완료 → 부모에게 "다음 고리 추가?" 제안 → 부모 승인 시 다음 링크 활성. "이불 정리" 1개 하드코딩 시작, 최대 3개 스택.
+- **진행 트리거:** 활성 고리가 최근 7일 중 5일 완료 → 부모에게 "다음 고리 추가?" 제안 → 부모 승인 시 다음 링크 활성. "5분 독서" 1개 하드코딩 시작, 최대 3개 스택.
 - **포인트 경제(사소):** 확정 완료 1 = +1포인트 + 컴패니언 1성장. 실물 보상은 부모 수동 약속 메모만(자동화 없음).
 - **저녁 리마인더(유일한 '선택' 조각):** 미승인 체크가 있으면 저녁(기본 20시) 로컬 알림 1회 — "OO의 컴패니언이 성장 준비됐어, 승인 대기 중"(`flutter_local_notifications`). 빼도 코어는 돔.
 
 ## 데이터 모델 (shared_preferences에 JSON 1키)
 ```
 AppState {
-  habits: [{ id, name, order, status: active|locked }]      // v0: ["이불 정리"]
+  habits: [{ id, name, order, status: active|locked }]      // v0: ["5분 독서"]
   dailyLog: { "YYYY-MM-DD": { checked: [habitId], settled: [habitId], restDay: bool } }
   pet: { level, xp, mood: energized|idle|lowEnergy|awaitingApproval|resting, lastFedDate }
   points: int
@@ -97,7 +97,7 @@ AppState {
 - **B 컴패니언 ON (2주):** 앱 사용, 코어 루프.
 - **A2 회수 / 컴패니언 OFF (4~5일):** 앱 중단(또는 컴패니언 숨김), 습관은 계속 관찰 기록. **이게 핵심 측정.**
 - **성과 = 행동('느낌' 아님):** 목표 습관이 A2(OFF)에서 *프롬프트 없이* 유지되면 신호. 붕괴하면 컴패니언은 프롭이었음. (앱의 주간카드 '환경이 했다' 문구는 부차적 정성 메모로 강등 — 채점 기준 아님.)
-- **습관 선택 ⚠️ (당신 입력 필요):** *실패 여지 있는* 습관 = 아이가 지금 주 2일 미만 하는 것. '이불 정리'가 이미 습관이면 무효 → 다른 습관으로. 시드는 `lib/models/app_data.dart` `AppData.seed`의 `'이불 정리'`를 교체.
+- **습관 (확정): 5분 독서** — 실패 여지 있음(아이가 현재 주 2일 미만), 사용자 선택. 시드 = `lib/models/app_data.dart` `AppData.seed`.
 - **부모 역할:** 순수 수신/반응만. 베이스라인·회수 포함 *말로 시키거나 칭찬 금지*(그러면 잔소리 = 실험 무효, 컴패니언 효과를 못 가림).
 - **권고:** 가능하면 종이로 1주 파일럿 먼저(앱 ON 전 손해 0).
 

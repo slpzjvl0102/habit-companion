@@ -80,10 +80,10 @@ class AppData {
     this.parentPin,
   }) : log = log ?? <String, DayLog>{};
 
-  /// First-run seed: one hardcoded habit pulled from the real test child's
-  /// morning routine (이불 정리).
+  /// First-run seed: one hardcoded habit with real room to fail (the ABA design
+  /// needs a habit the child does <2 days/week). Chosen: 5분 독서.
   static AppData seed(String today) => AppData(
-        habits: [Habit(id: 'h1', name: '이불 정리', order: 0)],
+        habits: [Habit(id: 'h1', name: '5분 독서', order: 0)],
         firstDay: today,
         lastSeenDay: today,
       );

@@ -15,7 +15,7 @@ void main() {
     await tester.pumpWidget(HabitCompanionApp(state: state));
     await tester.pumpAndSettle();
 
-    expect(find.text('이불 정리'), findsOneWidget);
+    expect(find.text('5분 독서'), findsOneWidget);
     expect(find.text('Lv.1'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, '했어!'));
